@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MY DESIGN</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* CSS rules to disable user selection and dragging globally and specifically on images */
+        * {
+            -webkit-user-select: none; /* Safari */
+            -moz-user-select: none;    /* Firefox */
+            -ms-user-select: none;     /* IE10+/Edge */
+            user-select: none;         /* Standard syntax */
+            -webkit-user-drag: none;   /* Disable webkit dragging */
+        }
+        img {
+            pointer-events: auto; /* Allow hover/click events if needed, but disable drag */
+            -webkit-user-drag: none;
+            user-drag: none;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen flex flex-col justify-between font-sans antialiased" oncontextmenu="return false;">
+
+    <!-- Header Section -->
+    <header class="w-full py-6 text-center shadow-lg bg-gray-800/50 backdrop-blur-md border-b border-gray-700/50">
+        <h1 class="text-3xl md:text-5xl font-extrabold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-500 uppercase">
+            MY DESIGN
+        </h1>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="flex-grow flex flex-col items-center justify-center p-4 md:p-8">
+        <div class="relative max-w-4xl w-full bg-gray-800 rounded-2xl p-3 md:p-5 shadow-2xl border border-gray-700 overflow-hidden">
+            <!-- Image Frame -->
+            <div class="relative w-full overflow-hidden rounded-xl bg-gray-950 flex items-center justify-center min-h-[300px]">
+                <img 
+                    src="mydesign.jpg" 
+                    alt="MY DESIGN" 
+                    id="protected-image"
+                    class="w-full h-auto object-contain max-h-[75vh] rounded-lg transition-transform duration-300 hover:scale-[1.01]"
+                    onerror="this.onerror=null; this.src='https://placehold.co/1200x800/1e293b/64748b?text=mydesign.jpg+Not+Found';"
+                    ondragstart="return false;"
+                />
+            </div>
+            
+            <!-- Protection Notice -->
+            <p class="text-center text-gray-400 text-xs md:text-sm mt-4 tracking-wide">
+                <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 mr-2 align-middle"></span>
+                Protected View • Right-click and dragging are disabled.
+            </p>
+        </div>
+    </main>
+
+    <!-- Footer Section -->
+    <footer class="w-full py-4 text-center text-xs text-gray-500 border-t border-gray-800">
+        &copy; <script>document.write(new Date().getFullYear())</script> MY DESIGN. All rights reserved.
+    </footer>
+
+    <!-- JavaScript Protection Handlers -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const img = document.getElementById('protected-image');
+
+            // 1. Block Context Menu (Right Click) across the entire document
+            document.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                return false;
+            });
+
+            // 2. Block Dragging on the page and image
+            document.addEventListener('dragstart', (e) => {
+                e.preventDefault();
+                return false;
+            });
+
+            // 3. Additional Protection: Block keyboard shortcuts commonly used for saving or viewing source
+            document.addEventListener('keydown', (e) => {
+                // Prevent Ctrl+S, Ctrl+U, Ctrl+Shift+I (F12 / DevTools), and Cmd equivalents on Mac
+                if (
+                    (e.ctrlKey || e.metaKey) && 
+                    (e.key === 's' || e.key === 'S' || e.key === 'u' || e.key === 'U')
+                ) {
+                    e.preventDefault();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
