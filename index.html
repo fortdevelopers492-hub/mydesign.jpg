@@ -49,7 +49,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
                     </svg>
                     <p class="text-lg font-bold text-gray-200">Protected Content</p>
-                    <p class="text-xs text-gray-400 mt-1">Refocus or click inside the window to view.</p>
+                    <p id="overlay-subtext" class="text-xs text-gray-400 mt-1">Refocus or click inside the window to view.</p>
                 </div>
 
                 <img 
@@ -80,16 +80,53 @@
         document.addEventListener('DOMContentLoaded', () => {
             const img = document.getElementById('protected-image');
             const overlay = document.getElementById('security-overlay');
+            const subtext = document.getElementById('overlay-subtext');
+
+            let revealTimer = null;
+            let countdownInterval = null;
 
             // --- HELPER FUNCTIONS FOR BLUR / PROTECT ---
             function hideContent() {
                 img.classList.add('protected-blur');
                 overlay.classList.remove('hidden');
+
+                // Cancel any ongoing countdown/reveal timers if hidden again
+                if (revealTimer) {
+                    clearTimeout(revealTimer);
+                    revealTimer = null;
+                }
+                if (countdownInterval) {
+                    clearInterval(countdownInterval);
+                    countdownInterval = null;
+                }
+                subtext.textContent = 'Refocus or click inside the window to view.';
             }
 
-            function showContent() {
-                img.classList.remove('protected-blur');
-                overlay.classList.add('hidden');
+            function attemptShowContent() {
+                // If a timer is already running, don't start a duplicate one
+                if (revealTimer) return;
+
+                let timeLeft = 10;
+                subtext.textContent = `Restoring view in ${timeLeft}s...`;
+
+                countdownInterval = setInterval(() => {
+                    timeLeft--;
+                    if (timeLeft > 0) {
+                        subtext.textContent = `Restoring view in ${timeLeft}s...`;
+                    } else {
+                        clearInterval(countdownInterval);
+                        countdownInterval = null;
+                    }
+                }, 1000);
+
+                // 10-second timer before fully revealing image
+                revealTimer = setTimeout(() => {
+                    if (document.hasFocus()) {
+                        img.classList.remove('protected-blur');
+                        overlay.classList.add('hidden');
+                    }
+                    revealTimer = null;
+                }, 10000);
             }
 
             // --- 1. KEYBOARD COMBINATION INTERCEPTION (WIN + SHIFT + S / PRTSCN) ---
@@ -102,7 +139,6 @@
                 if (e.key === 'PrintScreen' || e.keyCode === 44) {
                     hideContent();
                     if (navigator.clipboard) navigator.clipboard.writeText('');
-                    setTimeout(showContent, 1500);
                 }
 
                 // Catch Win + Shift + S or Win + Shift (Preemptive hide)
@@ -111,9 +147,6 @@
 
                 if (isWinPressed && isShiftPressed) {
                     hideContent();
-                    setTimeout(() => {
-                        if (document.hasFocus()) showContent();
-                    }, 3000);
                 }
 
                 // Block common Ctrl / Cmd shortcuts (Ctrl+S, Ctrl+P, Ctrl+U, Ctrl+I)
@@ -143,13 +176,13 @@
                 if (document.hidden) {
                     hideContent();
                 } else {
-                    showContent();
+                    attemptShowContent();
                 }
             });
 
             // --- 4. LAPTOP / DESKTOP FOCUS & MOUSE PROTECTION ---
             window.addEventListener('focus', () => {
-                showContent();
+                attemptShowContent();
             });
 
             document.addEventListener('mouseleave', () => {
@@ -158,7 +191,7 @@
 
             document.addEventListener('mouseenter', () => {
                 if (document.hasFocus()) {
-                    showContent();
+                    attemptShowContent();
                 }
             });
 
