@@ -7,7 +7,7 @@
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* CSS rules to disable user selection and dragging globally and specifically on images */
+        /* CSS rules to disable user selection and dragging globally */
         * {
             -webkit-user-select: none; /* Safari */
             -moz-user-select: none;    /* Firefox */
@@ -19,6 +19,12 @@
             pointer-events: auto; /* Allow hover/click events if needed, but disable drag */
             -webkit-user-drag: none;
             user-drag: none;
+        }
+
+        /* Blur protection effect when window loses focus or cursor leaves */
+        .protected-blur {
+            filter: blur(25px) grayscale(100%);
+            transition: filter 0.1s ease-in-out;
         }
     </style>
 </head>
@@ -36,11 +42,21 @@
         <div class="relative max-w-4xl w-full bg-gray-800 rounded-2xl p-3 md:p-5 shadow-2xl border border-gray-700 overflow-hidden">
             <!-- Image Frame -->
             <div class="relative w-full overflow-hidden rounded-xl bg-gray-950 flex items-center justify-center min-h-[300px]">
+                
+                <!-- Security Overlay Box (Displays when hidden/blurred) -->
+                <div id="security-overlay" class="absolute inset-0 z-20 bg-gray-950/90 backdrop-blur-md hidden flex flex-col items-center justify-center p-6 text-center">
+                    <svg class="w-12 h-12 text-red-500 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                    </svg>
+                    <p class="text-lg font-bold text-gray-200">Protected Content</p>
+                    <p class="text-xs text-gray-400 mt-1">Refocus or click inside the window to view.</p>
+                </div>
+
                 <img 
                     src="mydesign.jpg" 
                     alt="MY DESIGN" 
                     id="protected-image"
-                    class="w-full h-auto object-contain max-h-[75vh] rounded-lg transition-transform duration-300 hover:scale-[1.01]"
+                    class="w-full h-auto object-contain max-h-[75vh] rounded-lg transition-all duration-300 hover:scale-[1.01]"
                     onerror="this.onerror=null; this.src='https://placehold.co/1200x800/1e293b/64748b?text=mydesign.jpg+Not+Found';"
                     ondragstart="return false;"
                 />
@@ -49,7 +65,7 @@
             <!-- Protection Notice -->
             <p class="text-center text-gray-400 text-xs md:text-sm mt-4 tracking-wide">
                 <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 mr-2 align-middle"></span>
-                Protected View • Right-click and dragging are disabled.
+                Protected View • Right-click, dragging, and screen captures are restricted.
             </p>
         </div>
     </main>
@@ -63,29 +79,92 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const img = document.getElementById('protected-image');
+            const overlay = document.getElementById('security-overlay');
 
-            // 1. Block Context Menu (Right Click) across the entire document
-            document.addEventListener('contextmenu', (e) => {
-                e.preventDefault();
-                return false;
-            });
+            // --- HELPER FUNCTIONS FOR BLUR / PROTECT ---
+            function hideContent() {
+                img.classList.add('protected-blur');
+                overlay.classList.remove('hidden');
+            }
 
-            // 2. Block Dragging on the page and image
-            document.addEventListener('dragstart', (e) => {
-                e.preventDefault();
-                return false;
-            });
+            function showContent() {
+                img.classList.remove('protected-blur');
+                overlay.classList.add('hidden');
+            }
 
-            // 3. Additional Protection: Block keyboard shortcuts commonly used for saving or viewing source
-            document.addEventListener('keydown', (e) => {
-                // Prevent Ctrl+S, Ctrl+U, Ctrl+Shift+I (F12 / DevTools), and Cmd equivalents on Mac
-                if (
-                    (e.ctrlKey || e.metaKey) && 
-                    (e.key === 's' || e.key === 'S' || e.key === 'u' || e.key === 'U')
-                ) {
+            // --- 1. KEYBOARD COMBINATION INTERCEPTION (WIN + SHIFT + S / PRTSCN) ---
+            const activeKeys = new Set();
+
+            window.addEventListener('keydown', (e) => {
+                activeKeys.add(e.key.toLowerCase());
+
+                // Catch PrintScreen directly
+                if (e.key === 'PrintScreen' || e.keyCode === 44) {
+                    hideContent();
+                    if (navigator.clipboard) navigator.clipboard.writeText('');
+                    setTimeout(showContent, 1500);
+                }
+
+                // Catch Win + Shift + S or Win + Shift (Preemptive hide)
+                const isWinPressed = e.metaKey || activeKeys.has('meta') || activeKeys.has('os');
+                const isShiftPressed = e.shiftKey || activeKeys.has('shift');
+
+                if (isWinPressed && isShiftPressed) {
+                    hideContent();
+                    setTimeout(() => {
+                        if (document.hasFocus()) showContent();
+                    }, 3000);
+                }
+
+                // Block common Ctrl / Cmd shortcuts (Ctrl+S, Ctrl+P, Ctrl+U, Ctrl+I)
+                if ((e.ctrlKey || e.metaKey) && ['s', 'p', 'u', 'i'].includes(e.key.toLowerCase())) {
                     e.preventDefault();
                 }
             });
+
+            window.addEventListener('keyup', (e) => {
+                activeKeys.delete(e.key.toLowerCase());
+            });
+
+            window.addEventListener('blur', () => {
+                activeKeys.clear();
+                hideContent();
+            });
+
+            // --- 2. FOCUS POLLING (Catches OS Snip tool when window.blur misses) ---
+            setInterval(() => {
+                if (!document.hasFocus()) {
+                    hideContent();
+                }
+            }, 150);
+
+            // --- 3. PHONE & TAB VISIBILITY PROTECTION ---
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden) {
+                    hideContent();
+                } else {
+                    showContent();
+                }
+            });
+
+            // --- 4. LAPTOP / DESKTOP FOCUS & MOUSE PROTECTION ---
+            window.addEventListener('focus', () => {
+                showContent();
+            });
+
+            document.addEventListener('mouseleave', () => {
+                hideContent();
+            });
+
+            document.addEventListener('mouseenter', () => {
+                if (document.hasFocus()) {
+                    showContent();
+                }
+            });
+
+            // --- 5. PREVENT RIGHT-CLICK & DRAG ---
+            document.addEventListener('contextmenu', (e) => e.preventDefault());
+            document.addEventListener('dragstart', (e) => e.preventDefault());
         });
     </script>
 </body>
